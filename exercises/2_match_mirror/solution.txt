@@ -1,0 +1,117 @@
+//-------CONFIGURATION
+name: Match mirror
+init: ql
+accept: qaccept
+
+//-------DELTA FUNCTION:
+
+// Get first letter
+ql, 1
+q1#l, X, >
+
+ql, 0
+q0#l, X, >
+
+// Continue until first hashtag
+q1#l, 0
+q1#l, 0, >
+q1#l, 1
+q1#l, 1, >
+q1#l, #
+q1lr, #, >
+
+q0#l, 0
+q0#l, 0, >
+q0#l, 1
+q0#l, 1, >
+q0#l, #
+q0lr, #, >
+
+// Now we are in the second part of the string, so we move to the end of it
+q1lr, 0
+q1lr, 0, >
+q1lr, 1
+q1lr, 1, >
+
+q0lr, 0
+q0lr, 0, >
+q0lr, 1
+q0lr, 1, >
+
+// When we reach the end of the string, we move to the left to find the first available character
+q1lr, _
+q1r, _, <
+q1lr, X
+q1r, X, <
+
+q0lr, _
+q0r, _, <
+q0lr, X
+q0r, X, <
+
+// Then, we check if we found the right character and we move left
+q1r, 1
+qcheck1, X, <
+q0r, 0
+qcheck0, X, <
+
+// We check if we analysed the entire string
+qcheck1, #
+qverify, #, <
+qcheck0, #
+qverify, #, <
+
+qverify, X
+qaccept, X, >
+
+// If we are not finished, we continue normally
+qcheck1, 1
+q1#r, 1, <
+qcheck1, 0
+q1#r, 0, <
+
+qcheck0, 1
+q0#r, 1, <
+qcheck0, 0
+q0#r, 0, <
+
+// We then do the same thing starting from right to left
+q1#r, 1
+q1#r, 1, <
+q1#r, 0
+q1#r, 0, <
+
+q0#r, 1
+q0#r, 1, <
+q0#r, 0
+q0#r, 0, <
+
+// We check if we found the # that separates the two parts of the string
+q1#r, #
+q1rl, #, <
+
+q0#r, #
+q0rl, #, <
+
+// If we reach the first available character of the string
+q1rl, 0
+q1rl, 0, <
+q1rl, 1
+q1rl, 1, <
+
+q0rl, 0
+q0rl, 0, <
+q0rl, 1
+q0rl, 1, <
+
+// When we encounter the end of the string (empty string or an X meaning that that part has been already analysed)
+q1rl, _
+ql, _, >
+q1rl, X
+ql, X, >
+
+q0rl, _
+ql, _, >
+q0rl, X
+ql, X, >
+

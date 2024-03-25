@@ -1,0 +1,141 @@
+//-------CONFIGURATION
+name: Binary Subtraction 
+init: qstart
+accept: halt-accept
+
+//-------MACHINE DESCRIPTION
+// Description: this multi-tape turing machine is able to subtract two binary numbers. It uses 3 tapes: the first tape contains the first number, the second tape contains the second number and the third tape contains the result of the subtraction.
+// Format: <number1>-<number2>
+// Example: 101-10 = 11
+
+//-------DELTA FUNCTION:
+// FORMAT WITH 3 TAPES:
+// <curr_state>, <head_1>, <head_2>, <head_3>
+// <new_state>, <write_1>, <write_2>, <write_3>, <move_1>, <move_2>, <move_3>
+
+//
+// Starting: Check if there is at least one number of the left side 
+//
+qstart,0,_,_
+q0,0,_,_,>,-,-
+qstart,1,_,_
+q0,1,_,_,>,-,-
+
+//
+// Phase 1: Arrange number 1 and number 2 in respective tapes
+//
+
+q0,0,_,_
+q0,0,_,_,>,-,-
+q0,1,_,_
+q0,1,_,_,>,-,-
+
+// After reading the divider, we must check that there is at least one number on the right side
+q0,-,_,_
+qcheck_number_2,_,_,_,>,>,-
+
+// After ensuring that there is at least one number on the right side, we start writing the second number on the second tape
+qcheck_number_2,0,_,_
+qwrite_number_2,_,0,_,>,>,-
+qcheck_number_2,1,_,_
+qwrite_number_2,_,1,_,>,>,-
+
+// We start writing the second number on the second tape
+qwrite_number_2,0,_,_
+qwrite_number_2,_,0,_,>,>,-
+
+qwrite_number_2,1,_,_
+qwrite_number_2,_,1,_,>,>,-
+
+// As soon as we reach the end of the second number, we must recenter the first tape
+qwrite_number_2,_,_,_
+qrecenter_tape_1,_,_,_,<,-,-
+
+qrecenter_tape_1,_,_,_
+qrecenter_tape_1,_,_,_,<,-,-
+
+// As soon as we detect a valid input we enter phase 2
+qrecenter_tape_1,1,_,_
+q1,1,_,_,-,<,-
+qrecenter_tape_1,0,_,_
+q1,0,_,_,-,<,-
+
+//
+// Phase 2: actual subtraction of the two binary numbers
+//
+// We have many possible scenarios, each must be treated separately
+//
+
+// Scenario A: 0-0 or 0-empty
+q1,0,0,_
+q1,0,0,0,<,<,<
+
+q1,0,_,_
+q1,0,_,0,<,<,<
+
+// Scenario B: 1-0 or 1-empty
+q1,1,0,_
+q1,1,0,1,<,<,<
+
+q1,1,_,_
+q1,1,_,1,<,<,<
+
+// Scenario C: 1-1
+q1,1,1,_
+q1,1,1,0,<,<,<
+
+// Scenario D: 0-1 (we need to borrow from the left)
+// Note: we mark the current value with an X to remember where the borrowed value is needed
+q1,0,1,_
+qborrow_left,X,1,_,<,-,-
+
+// --- Special case: we need to borrom from the first available 1 to the left on the first tape
+
+// If we find a 0, we must go to the left until we find a 1 
+qborrow_left,0,1,_
+qborrow_left,0,1,_,<,-,-
+qborrow_left,0,0,_
+qborrow_left,0,0,_,<,-,-
+
+// If we find a 1, we must change it to 0 and change all the 0s to the right to 1s
+qborrow_left,1,0,_
+qborrow_back,0,0,_,>,-,-
+qborrow_left,1,1,_
+qborrow_back,0,1,_,>,-,-
+qborrow_left,1,_,_
+qborrow_back,0,_,_,>,-,-
+
+// We are back to the original position, so we just compute the substraction knowing that the value should be "10"
+qborrow_back,X,1,_
+q1,X,1,1,<,<,<
+qborrow_back,X,_,_
+q1,X,_,1,<,<,<
+
+// Handle all possible second tape values
+qborrow_back,0,1,_
+qborrow_back,1,1,_,>,-,-
+qborrow_back,0,0,_
+qborrow_back,1,0,_,>,-,-
+
+// CHECK FOR ENDING
+// We are finished with the subtraction as soon as we reach the end tape 1 and tape 2
+q1, _, _, _
+halt-accept, _, _, _, -,-,-
+
+//
+// Reject transitions
+//
+
+// -- State qstart
+qstart,-,_,_
+halt-reject,-,_,_,-,-,-
+
+// -- State q0
+qcheck_number_2,_,_,_
+halt-reject,_,_,_,-,-,-
+
+// -- State q1
+q1,_,1,_
+halt-reject,_,1,_,-,-,-
+q1,_,0,_
+halt-reject,_,0,_,-,-,-

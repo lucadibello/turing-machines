@@ -1,0 +1,156 @@
+;The following Turing machine accepts only when a same substring is found twice in the input string.
+;Example:
+;11#1010#1101#11 is accepted as 11 is found twice.
+;1010#1111#1#101#1111#1011 is accepted as 1111 is found twice.
+
+;Delta function structure: <state> <letter-to-read> <letter-to-write> <direction: l, r, .> <endstate>.
+;Note: direction can be l (left), r (right) or . (stay).
+
+;---- Initial state
+
+; Look for the next divider
+0 0 0 r 0
+0 1 1 r 0
+0 X X r 0
+0 Y Y r 0
+
+; As soon as we encounter the first divider, we split in two: one to look for the second divider and one to look for the first letter of the substring
+0 # ^ r qsearch
+0 # # r 0
+
+; if reach the end of the string, reject
+0 _ _ l rej
+qsearch _ _ l rej
+; look for illegal characters
+0 _ _ . rej
+0 # # . rej
+
+;---- To search, we will use this tactic:
+; 0. current position: we are on the # that separates the current element from the rest of the string
+; 1. move to the right until we find a #
+; 2. as soon as we find a #, we move to the left and start looking for the first letter of the substring
+; 3. if we reach the end of the string, we reject
+; 4. if we find the first letter of the substring, we move to the right and start looking for the second letter of the substring
+; Note: we mark processed zeros as X, and processed ones as Y
+
+;---- Search for the second divider
+qsearch 0 0 r qsearch
+qsearch 1 1 r qsearch
+qsearch # # l qmatch
+;Search also in next element
+qsearch # # r qsearch
+qsearch _ _ l qmatch
+
+
+;--- Search for letter of the substring (marked with ^)
+qmatch 0 X l qfind_0
+qmatch 1 Y l qfind_1
+; skip processed elements
+qmatch X X l qmatch
+qmatch Y Y l qmatch
+; we have matched the whole element on the right
+qmatch # # l qcheck_left
+; we have matched the whole element on the left
+qmatch ^ ^ r qcheck_right
+
+qfind_1 0 0 l qfind_1
+qfind_1 1 1 l qfind_1
+qfind_0 0 0 l qfind_0
+qfind_0 1 1 l qfind_0
+
+; When we are looking at elements with distance greater than 1, we must skip them
+qfind_0 # # l qfind_0
+qfind_1 # # l qfind_1
+
+qfind_0 ^ ^ l qmatch_0
+qfind_1 ^ ^ l qmatch_1
+
+; We must skip processed elements
+qmatch_0 X X l qmatch_0
+qmatch_0 Y Y l qmatch_0
+qmatch_1 X X l qmatch_1
+qmatch_1 Y Y l qmatch_1
+
+; But, as soon as we find what we are looking for, we move to the right and start looking for the second letter of the substring
+qmatch_0 0 X l qfind_front
+qmatch_1 1 Y l qfind_front
+
+qmatch_0 1 1 . rej
+qmatch_0 _ _ . rej
+qmatch_1 0 0 . rej
+qmatch_1 _ _ . rej
+
+; Now, we are looking for the next letter of the substring
+qfind_front 0 X r qgo_front_0
+qfind_front 1 Y r qgo_front_1
+
+; check if we have matched the whole substring
+qfind_front # # r acc
+qfind_front _ _ r acc
+
+; Now, go to the next element area to avoid problems
+qgo_front_0 0 0 r qgo_front_0
+qgo_front_0 1 1 r qgo_front_0
+qgo_front_0 X X r qgo_front_0
+qgo_front_0 Y Y r qgo_front_0
+qgo_front_0 ^ ^ r qfind_front_0
+qgo_front_1 0 0 r qgo_front_1
+qgo_front_1 1 1 r qgo_front_1
+qgo_front_1 X X r qgo_front_1
+qgo_front_1 Y Y r qgo_front_1
+qgo_front_1 ^ ^ r qfind_front_1
+
+;--- Search for even letter of the substring (from left to right)
+qfind_front_0 ^ ^ r qfind_front_0
+qfind_front_1 ^ ^ r qfind_front_1
+qfind_front_0 0 0 r qfind_front_0
+qfind_front_0 1 1 r qfind_front_0
+qfind_front_1 0 0 r qfind_front_1
+qfind_front_1 1 1 r qfind_front_1
+
+qfind_front_0 X X l qmatch_front_0
+qfind_front_0 Y Y l qmatch_front_0
+qfind_front_1 X X l qmatch_front_1
+qfind_front_1 Y Y l qmatch_front_1
+
+qfind_front_1 # # r qfind_front_1
+qfind_front_0 # # r qfind_front_0
+
+qmatch_front_0 0 X l qmatch
+qmatch_front_1 1 Y l qmatch
+
+; We were looking for 0, but we found 1 or vice versa
+qmatch_front_0 1 1 . rej
+qmatch_front_0 _ _ . rej
+qmatch_front_1 0 0 . rej
+qmatch_front_1 _ _ . rej
+
+;---- Checking the starting element if it has been matched completely 
+qcheck_left 0 0 l qcheck_left
+qcheck_left 1 1 l qcheck_left
+qcheck_left # # l qcheck_left
+qcheck_left ^ ^ l qcheck_left_in
+
+qcheck_left_in X X l qcheck_left_in
+qcheck_left_in Y Y l qcheck_left_in
+qcheck_left_in # # l acc
+qcheck_left_in _ _ l acc
+qcheck_left_in 0 0 r rej
+qcheck_left_in 1 1 r rej
+
+;---- Checking the ending element if it has been matched completely
+qcheck_right 0 0 r qcheck_right
+qcheck_right 1 1 r qcheck_right
+qcheck_right # # r qcheck_right
+qcheck_right X X r qcheck_right_ending
+qcheck_right Y Y r qcheck_right_ending
+qcheck_right _ _ l rej
+qcheck_right_ending X X r qcheck_right_ending
+qcheck_right_ending Y Y r qcheck_right_ending
+qcheck_right_ending # # l qcheck_right_in
+qcheck_right_ending _ _ l qcheck_right_in
+
+qcheck_right_in X X l qcheck_right_in
+qcheck_right_in Y Y l qcheck_right_in
+qcheck_right_in ^ ^ r acc
+qcheck_right_in # # r acc

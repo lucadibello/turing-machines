@@ -1,0 +1,131 @@
+;The following Turing machine accepts only if exists a path from the a starting vertex A to a final vertex B given an undirected graph G.
+
+;Example:
+;A1,1B is accepted as a path from A to B exists.j
+;A1,12,23,34,4B is also accepted as a path from A to B exists.
+
+;Delta function structure: <state> <letter-to-read> <letter-to-write> <direction: l, r, .> <endstate>.
+;Note: direction can be l (left), r (right) or . (stay).
+
+; First thing first, we must verify that the input string has the correct format
+0 A A r qfirst
+0 B B r qfirst
+0 1 1 r qfirst
+0 2 2 r qfirst
+0 3 3 r qfirst
+0 4 4 r qfirst
+
+; rejecting illegal characters
+0 _ _ . rej
+0 , , . rej
+qfirst , , . rej
+qfirst _ _ . rej
+
+qfirst A A r qsecond
+qfirst B B r qsecond
+qfirst 1 1 r qsecond
+qfirst 2 2 r qsecond
+qfirst 3 3 r qsecond
+qfirst 4 4 r qsecond
+
+qsecond _ _ l qrst
+qsecond , , r 0
+
+; As soon as we verified the correct format, we must
+; reposition the machine on the first character to allow
+; for a fresh start!
+qrst A A l qrst
+qrst B B l qrst
+qrst 1 1 l qrst
+qrst 2 2 l qrst
+qrst 3 3 l qrst
+qrst 4 4 l qrst
+qrst , , l qrst
+qrst _ _ r q0
+
+;First, we should identify the first character of the input string
+;For each character, we non-deterministically split the machine into 2 branches: ones that traverse the edge of the left, and one that traverse the edge to the right.
+
+; Look for vertex A from left to right
+q0 A X . qA
+q0 1 1 r q0
+q0 2 2 r q0
+q0 3 3 r q0
+q0 4 4 r q0
+q0 B B r q0
+; skip already visited vertices
+q0 X X r q0
+; Reject if illegal character
+q0 _ _ . rej
+q0 , , . rej
+
+; We have found A. We non-deterministically split the machine into 2 branches: one that goes to the left and one that goes to the right in order to find the edge that connects to the next vertex.
+qA X X l qmatch
+qA X X r qmatch
+
+; Kill the machine that goes out of bounds
+qmatch _ _ . rej
+qmatch , , . rej
+qmatch X X l qmatch
+qmatch X X r qmatch
+
+; Now, we must continue to explore from the vertex that was connected to A 
+; in order to go down the tree of possible paths to B.
+qmatch 1 X l q1
+qmatch 2 X l q2
+qmatch 3 X l q3
+qmatch 4 X l q4
+
+qmatch 1 X r q1
+qmatch 2 X r q2
+qmatch 3 X r q3
+qmatch 4 X r q4
+
+; Check if we have reached the vertex B
+qmatch B B . acc
+
+; If we have not reached B, we must continue to explore the graph
+
+; -- we must find another 1
+q1 1 X . qmatch
+q1 _ _ . rej
+
+q1 2 2 r q1
+q1 3 3 r q1
+q1 4 4 r q1
+q1 B B r q1
+q1 , , r q1
+q1 X X r q1
+
+; -- we must find another 2
+q2 2 X . qmatch
+q2 _ _ . rej
+
+q2 1 1 r q2
+q2 3 3 r q2
+q2 4 4 r q2
+q2 B B r q2
+q2 , , r q2
+q2 X X r q2
+
+; -- we must find another 3
+q3 3 X . qmatch
+q3 _ _ . rej
+
+q3 1 1 r q3
+q3 2 2 r q3
+q3 4 4 r q3
+q3 B B r q3
+q3 , , r q3
+q3 X X r q3
+
+; -- we must find another 4
+q4 4 X . qmatch
+q4 _ _ . rej
+
+q4 1 1 r q4
+q4 2 2 r q4
+q4 4 4 r q4
+q4 B B r q4
+q4 , , r q4
+q4 X X r q4

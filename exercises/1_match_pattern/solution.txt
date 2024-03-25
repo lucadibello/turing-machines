@@ -1,0 +1,100 @@
+//-------CONFIGURATION
+name: Match pattern 
+init: left
+accept: qaccept
+
+//-------TRANSITIONS
+
+// If we find the first a, then we must find a b to match
+left, a
+findb_right, x, >
+
+// If we find an y, then we must check that we have matched all letters
+left, y
+check_y_rl, y, >
+
+
+// On the other hand, if we find an y, this means that we have already matched all b's with the a's so we should have finished...
+// To be sure that we have finished, we must check that the only present characters are y's and x's
+left, y
+check_y_lr, y, >
+
+check_y_lr, y
+check_y_lr, y, >
+
+check_y_lr, x
+check_x_lr, x, >
+
+check_x_lr, x
+check_x_lr, x, >
+
+check_x_lr, _
+qaccept, _, <
+
+// We go right until we find a b
+findb_right, a
+findb_right, a, >
+findb_right, y
+findb_right, y, >
+
+// We have found a b, so we mark it as y
+findb_right, b
+go_right, y, >
+
+// We must go to the other end of the string 
+go_right, a
+go_right, a, >
+go_right, b
+go_right, b, >
+go_right, y
+go_right, y, >
+
+// When we find an X or the empty string, we go to the left to position the machine to the beginning of the string
+go_right, x
+right, x, < 
+go_right, _
+right, _, < 
+
+// Now, if the the current caracter is an a, then we must find a b to match it
+right, a
+findb_left, x, <
+
+// On the other hand, if we find an y, this means that we have already matched all b's with the a's so we should have finished...
+// To be sure that we have finished, we must check that the only present characters are y's and x's
+right, y
+check_y_rl, y, <
+
+check_y_rl, y
+check_y_rl, y, <
+
+check_y_rl, x
+check_x_rl, x, <
+
+check_x_rl, x
+check_x_rl, x, <
+
+check_x, _
+qaccept, _, >
+
+// --- CONTINUE FROM BEFORE
+
+// Since we detected that there are still some character to process, we go to the left until we find a maching b
+findb_left, a
+findb_left, a, <
+findb_left, y
+findb_left, y, <
+findb_left, b
+go_left, y, <
+
+// We reset to the first character of the string on the left side 
+go_left, a
+go_left, a, <
+go_left, b
+go_left, b, <
+go_left, y
+go_left, y, <
+
+go_left, x
+left, x, >
+go_left, _
+left, _, >

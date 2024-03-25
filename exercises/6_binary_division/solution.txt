@@ -1,0 +1,619 @@
+//-------NOTE: Straightforward tutorial on binary division: https://www.wikihow.com/Divide-Binary-Numbers
+
+//-------CONFIGURATION
+name: Binary division 
+init: qstart
+accept: halt-accept
+
+//-------MACHINE DESCRIPTION
+// Description: this multi-tape turing machine is able to divide two binary numbers and return the result
+// Format: <number1>/<number2>
+// Example: 101/100 = 1
+//
+// This TM will use 4 tapes:
+// - Tape 1: number 1
+// - Tape 2: number 2
+// - Tape 3: subtraction result
+// - Tape 4: quotient (result of the division)
+//
+
+//-------DELTA FUNCTION:
+// FORMAT WITH 4 TAPES:
+// <curr_state>,<head_1>,<head_2>,<head_3>,<head_4>
+// <new_state>,<write_1>,<write_2>,<write_3>,<write_4>,<move_1>,<move_2>,<move_3>,<move_4>
+
+//
+// Starting: Check if there is at least one number of the left side 
+//
+qstart,0,_,_,_
+q0,0,_,_,_, >,-,-, -
+qstart,1,_,_,_
+q0,1,_,_,_, >,-,-,-
+
+//
+// Phase 1: Arrange number 1 and number 2 in respective tapes
+//
+
+q0,0,_,_,_
+q0,0,_,_,_, >,-,-,-
+q0,1,_,_,_
+q0,1,_,_,_, >,-,-,-
+
+// After reading the divider, we must check that there is at least one number on the right side
+q0,/,_,_,_
+qcheck_number_2,_,_,_,_, >,>,-,-
+
+// After ensuring that there is at least one number on the right side, we start writing the second number on the second tape
+qcheck_number_2,0,_,_,_
+qwrite_number_2,_,0,_,_, >,>,-,-
+qcheck_number_2,1,_,_,_
+qwrite_number_2,_,1,_,_, >,>,-,-
+
+// We start writing the second number on the second tape
+qwrite_number_2,0,_,_,_
+qwrite_number_2,_,0,_,_, >,>,-,-
+
+qwrite_number_2,1,_,_,_
+qwrite_number_2,_,1,_,_, >,>,-,-
+
+// As soon as we reach the end of the second number, we must first put both heads of tape 1 and 2 on the LSB
+qwrite_number_2,_,_,_,_
+qrecenter_lsb,_,_,_,_, <,<,-,-
+
+qrecenter_lsb,_,_,_,_
+qrecenter_lsb,_,_,_,_, <,<,-,-
+// -- first tape already on LSB
+qrecenter_lsb,0,_,_,_
+qrecenter_lsb,0,_,_,_, -,<,-,-
+qrecenter_lsb,1,_,_,_
+qrecenter_lsb,1,_,_,_, -,<,-,-
+// -- second tape already on LSB
+qrecenter_lsb,_,0,_,_
+qrecenter_lsb,_,0,_,_, <,-,-,-
+qrecenter_lsb,_,1,_,_
+qrecenter_lsb,_,1,_,_, <,-,-,-
+// -- both tape on LSB, we can now align them on the MSB easily
+qrecenter_lsb,0,0,_,_
+qmsb_align,0,0,_,_, <,<,-,-
+qrecenter_lsb,0,1,_,_
+qmsb_align,0,1,_,_, <,<,-,-
+qrecenter_lsb,1,0,_,_
+qmsb_align,1,0,_,_, <,<,-,-
+qrecenter_lsb,1,1,_,_
+qmsb_align,1,1,_,_, <,<,-,-
+
+// -- we continue moving both tapes until we reach the MSB of both numbers
+qmsb_align,0,0,_,_
+qmsb_align,0,0,_,_, <,<,-,-
+qmsb_align,0,1,_,_
+qmsb_align,0,1,_,_, <,<,-,-
+qmsb_align,1,0,_,_
+qmsb_align,1,0,_,_, <,<,-,-
+qmsb_align,1,1,_,_
+qmsb_align,1,1,_,_, <,<,-,-
+
+qmsb_align,1,_,_,_
+qmsb_align,1,_,_,_, <,-,-,-
+qmsb_align,0,_,_,_
+qmsb_align,0,_,_,_, <,-,-,-
+
+qmsb_align,_,1,_,_
+qmsb_align,_,1,_,_, -,<,-,-
+qmsb_align,_,0,_,_
+qmsb_align,_,0,_,_, -,<,-,-
+
+// -- as soon as both heads are on the empty symbol, we move them to the right to have heads on the MSB
+qmsb_align,_,_,_,_
+q1,_,_,_,_, >,>,-,-
+
+// We must first detect which part of the dividend we are going to subtract
+// To do so, we move the head on tape 1 and 2 until we find that the number on tape 1 is greater the second one
+// During this process, we also write the quotient on tape 4
+
+//
+// Starting cases: the quotient could be either equal (qequal), larger (qlarger) or smaller (q1) than the divisor
+// 
+
+// -- Case 0-0 (if empty on next digit we are done)
+q1,0,0,_,_
+qequal,0,0,_,0, >,>,-,>
+
+// (handling quotient values after phase 4)
+q1,0,0,_,0
+qequal,0,0,_,0, >,>,-,>
+q1,0,0,_,1
+qequal,0,0,_,1, >,>,-,>
+
+// -- Case 0-1 (less, so we continue to the next digit without changing the quotient as the divisor is larger)
+q1,0,1,_,_
+qless,0,1,_,0, >,>,-,>
+
+// (handling quotient values after phase 4)
+q1,0,1,_,0
+qless,0,1,_,0, >,>,-,>
+q1,0,1,_,1
+qless,0,1,_,1, >,>,-,>
+
+// -- Case 1-0 - could be bigger, so if we are finished we are done!
+q1,1,0,_,_
+qlarger,1,0,_,1, >,>,-,>
+
+// (handling quotient values after phase 4)
+q1,1,0,_,0
+qlarger,1,0,_,0, >,>,-,>
+q1,1,0,_,1
+qlarger,1,0,_,1, >,>,-,>
+
+// -- Case 1-1 (if empty on next digit we are done)
+q1,1,1,_,_
+qequal,1,1,_,0, >,>,-,>
+
+// (handling quotient values after phase 4)
+q1,1,1,_,0
+qequal,1,1,_,0, >,>,-,>
+q1,1,1,_,1
+qequal,1,1,_,1, >,>,-,>
+
+//
+// Equal cases: in this state, the two numbers are the same and we must move until:
+// 1. We find a digit that makes the first number larger than the second
+// 2. We reach the end of the number (in this case we are done)
+// 
+
+// Check next digit!
+qequal,0,0,_,_
+qequal,0,0,_,0, >,>,-,>
+// (handling quotient values after phase 4)
+qequal,0,0,_,0
+qequal,0,0,_,0, >,>,-,>
+qequal,0,0,_,1
+qequal,0,0,_,1, >,>,-,>
+
+qequal,0,1,_,_
+qless,0,1,_,0, >,>,-,>
+// (handling quotient values after phase 4)
+qequal,0,1,_,0
+qless,0,1,_,0, >,>,-,>
+qequal,0,1,_,1
+qless,0,1,_,1, >,>,-,>
+
+qequal,1,0,_,_
+qlarger,1,0,_,0, >,>,-,>
+// (handling quotient values after phase 4)
+qequal,1,0,_,0
+qlarger,1,0,_,0, >,>,-,>
+qequal,1,0,_,1
+qlarger,1,0,_,1, >,>,-,>
+
+qequal,1,1,_,_
+qequal,1,1,_,0, >,>,-,>
+// (handling quotient values after phase 4)
+qequal,1,1,_,0
+qequal,1,1,_,0, >,>,-,>
+qequal,1,1,_,1
+qequal,1,1,_,1, >,>,-,>
+
+// --- ending checks
+qequal,0,_,_,_
+qtoggle_last_quotient,0,_,_,_, <,<,-,<
+qequal,1,_,_,_
+qtoggle_last_quotient,1,_,_,_, <,<,-,<
+
+// --- we need also to check if we are done with the division
+qequal,_,0,_,_
+halt-accept,_,0,_,_, -,-,-,-
+qequal,_,0,_,0
+halt-accept,_,0,_,0, -,-,-,-
+qequal,_,0,_,1
+halt-accept,_,0,_,1, -,-,-,-
+
+qequal,_,1,_,_
+halt-accept,_,1,_,_, -,-,-,-
+qequal,_,1,_,0
+halt-accept,_,1,_,0, -,-,-,-
+qequal,_,1,_,1
+halt-accept,_,1,_,1, -,-,-,-
+
+
+// -- -- In this case we must go back and set the previous digit of the quotient to 1
+qequal,_,_,_,_
+qtoggle_last_quotient,_,_,_,_, <,<,-,<
+// (handling quotient values after phase 4)
+// On the other hand, if the previous digit was already a 1, we must add a 1 on the rightr
+// We need to check if we are finished!
+qtoggle_last_quotient,0,0,_,1
+qtoggle_last_quotient,0,0,_,1, -,-,-,>
+qtoggle_last_quotient,0,1,_,1
+qtoggle_last_quotient,0,1,_,1, -,-,-,>
+qtoggle_last_quotient,1,0,_,1
+qtoggle_last_quotient,1,0,_,1, -,-,-,>
+qtoggle_last_quotient,1,1,_,1
+qtoggle_last_quotient,1,1,_,1, -,-,-,>
+// -- special case: if we are in an empty spot, we are finished so we add a 1
+qtoggle_last_quotient,0,0,_,_
+q2,0,0,_,1, -,-,-,>
+qtoggle_last_quotient,0,1,_,_
+q2,0,1,_,1, -,-,-,>
+qtoggle_last_quotient,1,0,_,_
+q2,1,0,_,1, -,-,-,>
+qtoggle_last_quotient,1,1,_,_
+q2,1,1,_,1, -,-,-,>
+
+// handle the movements to toggle the last digit of the quotient
+qtoggle_last_quotient,0,0,_,0
+q2,0,0,_,1, -,-,-,>
+qtoggle_last_quotient,0,1,_,0
+q2,0,1,_,1, -,-,-,>
+qtoggle_last_quotient,1,0,_,0
+q2,1,0,_,1, -,-,-,>
+qtoggle_last_quotient,1,1,_,0
+q2,1,1,_,1, -,-,-,>
+
+// Larger case: in this state, the first number seems to be larger than the second one so we must move until:
+// 1. We find the end of number 2 (in this case we are done)
+// 2. We find a digit that makes the first number smaller than the second
+
+qlarger,0,0,_,_
+qlarger,0,0,_,0, >,>,-,>
+qlarger,0,1,_,_
+qlarger,0,1,_,0, >,>,-,>
+qlarger,1,0,_,_
+qlarger,1,0,_,0, >,>,-,>
+qlarger,1,1,_,_
+qlarger,1,1,_,0, >,>,-,>
+
+//-- ending checks
+qlarger,_,_,_,_
+qtoggle_last_quotient,_,_,_,_, <,<,-,<
+qlarger,0,_,_,_
+qtoggle_last_quotient,0,_,_,_, <,<,-,<
+qlarger,1,_,_,_
+qtoggle_last_quotient,1,_,_,_, <,<,-,<
+
+// -- we need also to check if we are done with the division
+qlarger,_,0,_,_
+halt-accept,_,0,_,_, -,-,-,-
+qlarger,_,1,_,_
+halt-accept,_,1,_,_, -,-,-,-
+
+qlarger,_,0,_,0
+halt-accept,_,0,_,0, <,<,-,<
+qlarger,_,0,_,1
+halt-accept,_,0,_,1, <,<,-,<
+qlarger,_,1,_,0
+halt-accept,_,1,_,0, <,<,-,<
+qlarger,_,1,_,1
+halt-accept,_,1,_,1, <,<,-,<
+
+//
+// Less case: in this state, the first number seems to be smaller than the second one so we must move to the next digit
+//
+qless,0,0,_,_
+qless,0,0,_,0, >,>,-,>
+qless,1,1,_,_
+qless,1,1,_,0, >,>,-,>
+
+// (handling quotient values after phase 4)
+qless,0,0,_,0
+qless,0,0,_,0, >,>,-,>
+qless,0,0,_,1
+qless,0,0,_,1, >,>,-,>
+qless,1,0,_,0
+qless,1,0,_,0, >,>,-,>
+qless,1,0,_,1
+qless,1,0,_,1, >,>,-,>
+qless,1,1,_,0
+qless,1,1,_,0, >,>,-,>
+qless,1,1,_,1
+qless,1,1,_,1, >,>,-,>
+qless,0,1,_,0
+qless,0,1,_,0, >,>,-,>
+qless,0,1,_,1
+qless,0,1,_,1, >,>,-,>
+
+// -- ending checks: if we reach the end of the first number, we are done with the division
+qless,_,0,_,1
+qzero_right,_,0,_,1, -,>,-,>
+qless,_,0,_,0
+qzero_right,_,0,_,0, -,>,-,>
+qless,_,1,_,0
+qzero_right,_,1,_,0, -,>,-,>
+qless,_,1,_,1
+qzero_right,_,1,_,1, -,>,-,>
+
+// -- ending checks: if we reach the end of the second number, we are done
+qless,1,_,_,_
+q2,1,_,_,1, -,<,-,>
+qless,0,_,_,_
+q2,0,_,_,1, -,<,-,>
+
+// Check if have finished scanning the string
+qless,_,_,_,_
+halt-accept,_,_,_,_, -,-,-,-
+
+//
+// Phase 1.5: Operations on the quotient before ending the overall division
+//
+qzero_right,_,0,_,0
+qzero_right,_,0,_,0, -,-,-,>
+qzero_right,_,0,_,1
+qzero_right,_,0,_,1, -,-,-,>
+
+qzero_right,_,1,_,0
+qzero_right,_,1,_,0, -,-,-,>
+qzero_right,_,1,_,1
+qzero_right,_,1,_,1, -,-,-,>
+
+qzero_right,_,_,_,_
+halt-accept,_,_,_,0, -,-,-,-
+qzero_right,_,0,_,_
+halt-accept,_,_,_,0, -,-,-,-
+qzero_right,_,1,_,_
+halt-accept,_,_,_,0, -,-,-,-
+
+//
+// Phase 2: subtraction (taken from exercise 3)
+//
+
+// Scenario A: 0-0 or 0-empty
+q2,0,0,_,_
+q2,0,0,0,_, <,<,<,-
+
+q2,0,_,_,_
+q2,0,_,0,_, <,<,<,-
+
+// Scenario B: 1-0 or 1-empty
+q2,1,0,_,_
+q2,1,0,1,_, <,<,<,-
+
+q2,1,_,_,_
+q2,1,_,1,_, <,<,<,-
+
+// Scenario C: 1-1
+q2,1,1,_,_
+q2,1,1,0,_, <,<,<,-
+
+// Scenario D: 0-1 (we need to borrow from the left)
+// Note: we mark the current value with an Z to remember where the borrowed value is needed
+q2,0,1,_,_
+qborrow_left,Z,1,_,_, <,-,-,-
+
+// --- Special case: we need to borrom from the first available 1 to the left on the first tape
+
+// If we find a 0, we must go to the left until we find a 1 
+qborrow_left,0,1,_,_
+qborrow_left,0,1,_,_, <,-,-,-
+qborrow_left,0,0,_,_
+qborrow_left,0,0,_,_, <,-,-,-
+
+// If we find a 1, we must change it to 0 and change all the 0s to the right to 1s
+qborrow_left,1,0,_,_
+qborrow_back,0,0,_,_, >,-,-,-
+qborrow_left,1,1,_,_
+qborrow_back,0,1,_,_, >,-,-,-
+qborrow_left,1,_,_,_
+qborrow_back,0,_,_,_, >,-,-,-
+
+// We are back to the original position, so we just compute the substraction knowing that the value should be "10"
+qborrow_back,Z,1,_,_
+q2,Z,1,1,_, <,<,<,-
+qborrow_back,Z,_,_,_
+q2,Z,_,1,_, <,<,<,-
+
+// Handle all possible second tape values
+qborrow_back,0,1,_,_
+qborrow_back,1,1,_,_, >,-,-,-
+qborrow_back,0,0,_,_
+qborrow_back,1,0,_,_, >,-,-,-
+
+// We are finished with the subtraction as soon as we reach the end tape 1 and tape 2
+// As soon as we finish, the machine puts the heads on the MSB of number 1 and the result of the subtraction
+q2,_,_,_,_
+qremove_leading_zeros,_,_,_,_, >,-,>,-
+
+qremove_leading_zeros,0,_,0,_
+qremove_leading_zeros,_,_,_,_, >,-,>,-
+
+qremove_leading_zeros,1,_,0,_
+qremove_leading_zeros,_,_,_,_, >,-,>,-
+
+qremove_leading_zeros,Z,_,0,_
+qremove_leading_zeros,_,_,_,_, >,-,>,-
+
+// Check for finish!!!
+qremove_leading_zeros,_,_,_,_
+halt-accept,_,_,_,_, -,-,-,-
+
+qremove_leading_zeros,0,_,1,_
+q3,1,_,_,_, >,-,>,<
+qremove_leading_zeros,1,_,1,_
+q3,1,_,_,_, >,-,>,<
+qremove_leading_zeros,Z,_,1,_
+q3,1,_,_,_, >,-,>,<
+
+qremove_leading_zeros,0,_,_,_
+qleft,0,_,_,_, -,-,>,-
+qremove_leading_zeros,0,_,_,0
+qleft,0,_,_,0, -,-,>,-
+qremove_leading_zeros,0,_,_,1
+qleft,0,_,_,_, -,-,>,-
+
+qremove_leading_zeros,1,_,_,_
+qleft,1,_,_,_, -,-,>,-
+qremove_leading_zeros,1,_,_,0
+qleft,1,_,_,0, -,-,>,-
+qremove_leading_zeros,1,_,_,1
+qleft,1,_,_,1, -,-,>,-
+
+q3,0,_,0,_
+q3,0,_,_,_, >,-,>,<
+q3,0,_,0,0
+q3,0,_,_,_, >,-,>,<
+q3,0,_,0,1
+q3,0,_,_,_, >,-,>,<
+
+q3,0,_,1,_
+q3,1,_,_,_, >,-,>,<
+q3,0,_,1,0
+q3,1,_,_,0, >,-,>,<
+q3,0,_,1,1
+q3,1,_,_,1, >,-,>,<
+
+q3,1,_,0,_
+q3,0,_,_,_, >,-,>,<
+q3,1,_,0,0
+q3,0,_,_,0, >,-,>,<
+q3,1,_,0,1
+q3,0,_,_,1, >,-,>,<
+
+q3,1,_,1,_
+q3,1,_,_,_, >,-,>,<
+q3,1,_,1,0
+q3,1,_,_,0, >,-,>,<
+q3,1,_,1,1
+q3,1,_,_,1, >,-,>,<
+
+q3,Z,_,1,_
+q3,1,_,_,_, >,-,>,<
+q3,Z,_,1,0
+q3,1,_,_,0, >,-,>,<
+q3,Z,_,1,1
+q3,1,_,_,1, >,-,>,<
+
+
+// -- handling also borrwed values from before
+q3,Z,_,1,_
+q3,1,_,_,_, >,-,>,<
+q3,Z,_,0,_
+q3,0,_,_,_, >,-,>,<
+
+// 
+// Phase 3: Aligning heads on MSB
+//
+q3,0,0,_,_
+q3,0,0,_,_, <,<,-,-
+q3,0,0,_,0
+q3,0,0,_,0, <,<,-,-
+q3,0,0,_,1
+q3,0,0,_,1, <,<,-,-
+
+q3,0,1,_,_
+q3,0,1,_,_, <,<,-,-
+q3,0,1,_,0
+q3,0,1,_,0, <,<,-,-
+q3,0,1,_,1
+q3,0,1,_,1, <,<,-,-
+
+q3,1,0,_,_
+q3,1,0,_,_, <,<,-,-
+q3,1,0,_,0
+q3,1,0,_,0, <,<,-,-
+q3,1,0,_,1
+q3,1,0,_,1, <,<,-,-
+
+q3,1,1,_,_
+q3,1,1,_,_, <,<,-,-
+q3,1,1,_,0
+q3,1,1,_,0, <,<,-,-
+q3,1,1,_,1
+q3,1,1,_,1, <,<,-,-
+
+q3,1,_,_,_
+q3,1,_,_,_, -,<,-,-
+q3,1,_,_,1
+q3,1,_,_,1, -,<,-,-
+q3,1,_,_,0
+q3,1,_,_,0, -,<,-,-
+
+q3,0,_,_,_
+q3,0,_,_,_, -,<,-,-
+q3,0,_,_,0
+q3,0,_,_,0, -,<,-,-
+q3,0,_,_,1
+q3,0,_,_,1, -,<,-,-
+
+q3,_,1,_,_
+q3,_,1,_,_, <,-,-,-
+q3,_,1,_,0
+q3,_,1,_,0, <,-,-,-
+q3,_,1,_,1
+q3,_,1,_,1, <,-,-,-
+
+q3,_,0,_,_
+q3,_,0,_,_, <,-,-,-
+q3,_,0,_,0
+q3,_,0,_,0, <,-,-,-
+q3,_,0,_,1
+q3,_,0,_,1, <,-,-,-
+
+// We must align the heads on the MSB before restarting the subtraction
+q3,_,_,_,_
+qleft, _,_,_,_, <,>,-,-
+q3,_,_,_,0
+qleft, _,_,_,0, <,>,-,-
+q3,_,_,_,1
+qleft, _,_,_,1, <,>,-,-
+
+qleft,0,_,_,_
+qleft,0,_,_,_, <,-,-,-
+qleft,0,_,_,0
+qleft,0,_,_,0, <,-,-,-
+qleft,0,_,_,1
+qleft,0,_,_,1, <,-,-,-
+
+qleft,1,_,_,_
+qleft,1,_,_,_, -,>,-,-
+qleft,1,_,_,0
+qleft,1,_,_,0, -,>,-,-
+qleft,1,_,_,1
+qleft,1,_,_,1, -,>,-,-
+
+qleft,_,1,_,_
+qleft,_,1,_,_, >,-,-,-
+qleft,_,1,_,0
+qleft,_,1,_,0, >,-,-,-
+qleft,_,1,_,1
+qleft,_,1,_,1, >,-,-,-
+
+qleft,_,0,_,_
+qleft,_,0,_,_, >,-,-,-
+qleft,_,0,_,0
+qleft,_,0,_,0, >,-,-,-
+qleft,_,0,_,1
+qleft,_,0,_,1, >,-,-,-
+
+qleft,0,0,_,_
+qleft,0,0,_,_, <,<,-,-
+qleft,0,1,_,_
+qleft,0,1,_,_, <,<,-,-
+qleft,1,0,_,_
+qleft,1,0,_,_, <,<,-,-
+qleft,1,1,_,_
+qleft,1,1,_,_, <,<,-,-
+
+qleft,0,0,_,0
+qleft,0,0,_,0, <,<,-,-
+qleft,0,1,_,0
+qleft,0,1,_,0, <,<,-,-
+qleft,1,0,_,0
+qleft,1,0,_,0, <,<,-,-
+qleft,1,1,_,0
+qleft,1,1,_,0, <,<,-,-
+
+qleft,0,0,_,1
+qleft,0,0,_,1, <,<,-,-
+qleft,0,1,_,1
+qleft,0,1,_,1, <,<,-,-
+qleft,1,0,_,1
+qleft,1,0,_,1, <,<,-,-
+qleft,1,1,_,1
+qleft,1,1,_,1, <,<,-,-
+
+// --- ending checks
+
+qleft,_,_,_,_
+q1,_,_,_,_, >,>,-,-
+qleft,_,_,_,0
+q1,_,_,_,0, >,>,-,-
+qleft,_,_,_,1
+q1,_,_,_,1, >,>,-,-

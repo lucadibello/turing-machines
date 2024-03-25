@@ -1,0 +1,246 @@
+//-------CONFIGURATION
+name: Modulo Division 
+init: left
+accept: halt-accept
+
+//-------MACHINE DESCRIPTION
+// Description: this single-tape turing machine prints the remainer of the division between two numbers
+// Format: <Dividend>#<Divisor>
+// Example: 1111#11 = 11, #11 = _, 1111#111 = 11
+
+//-------DELTA FUNCTION:
+
+// We must match a 1, then we move until we find a #, then we move to the right and match a 1
+// If we encounter 1#1: we continue the algorithm normally
+// If we encounter 1#X: we must reset the right part of the string and remove any X from the left part of the string, and restart the algorithm from the left part
+// If we encounter X#X: we must remove all character in the tape
+// If we encounter X#1: we must remove all character from the right part, and convert all Xs from the left part to a 1
+
+left, 1
+go_right, X, >
+
+right, 1
+pre_go_left, X, <
+
+	// When we arrived a # we must check how to continue
+left, #
+check_end_lr, #, <
+right, #
+check_end_lr, #, <
+
+//-------FUNCTIONS
+
+//DEF: Go from the left part of the string to the right part of the string
+
+	// for every 1 we continue until we find a #
+go_right, 1
+go_right, 1, >
+
+go_right, #
+go_right_hash, #, >
+
+	// Go right until we find the end of the string
+go_right_hash, 1
+go_right_hash, 1, >
+go_right_hash, _
+right, _, <
+go_right_hash, X
+right, X, <
+
+//DEF: Go from the right part of the string to the left part of the string
+
+	// first, check if we have just finished the right part of the string
+pre_go_left, #
+check_end_lr, #, <
+pre_go_left, 1
+go_left, 1, <
+
+	// for every 1 we continue until we find a #
+go_left, 1
+go_left, 1, <
+
+go_left, #
+go_left, #, <
+
+	// Go left until we find the end of the string
+go_left, _
+left, _, >
+
+// Go left until we find the end of the string
+go_left, X
+left, X, >
+go_left, _
+left, _, >
+
+////-----------------END CONDITION AUTOMATIC CHECKS
+
+//DEF: Check if we have this pattern: 1#X (left to right)
+
+// Handling special input: "_#..."
+check_end_lr, _
+pre_cleaning_tape, _, >
+
+pre_cleaning_tape, #
+clean_tape_right, #, >
+
+//--- From left to right
+	// First character: 1
+check_end_lr, 1
+check_end_lr_2_reset, 1, >
+ 
+	// Second character: #
+check_end_lr_2_reset, #
+check_end_lr_3_reset, #, >
+ 
+	// Third character: X
+check_end_lr_3_reset, X
+reset_tape, X, <
+
+//DEF: Check if we have the pattern X#X (check for tape cleaning)
+// or we have the pattern X#1 (remove left part)
+
+//--- From left to right
+ 
+	// First character: X
+check_end_lr, X
+check_end_lr_2_clean, X, >
+ 
+	// Second character: #
+check_end_lr_2_clean, #
+check_end_lr_3_clean, #, >
+ 
+	// Third character: X
+check_end_lr_3_clean, X
+clean_tape, X, <
+	// Third character: 1
+check_end_lr_3_clean, 1
+clean_tape_right, 1, >
+
+////-----------------CLEANING FUNCTIONS
+
+//DEF: This function allows to 
+clean_tape_right, 1
+clean_tape_right, 1, >
+clean_tape_right, X
+clean_tape_right, X, >
+clean_tape_right, _
+erasing_right, _, <
+erasing_right, X
+erasing_right, _, <
+erasing_right, 1
+erasing_right, _, <
+erasing_right, #
+reset_erasing_right, _, <
+
+reset_erasing_right, X
+reset_erasing_right, 1, <
+reset_erasing_right, _
+halt-accept, _, >
+
+//DEF: This function positions the machine in the left part of the string to then clean the entire tape contents
+clean_tape, #
+clean_tape, #, <
+clean_tape, X
+clean_tape, X, <
+clean_tape, _
+erasing, _, >
+erasing, X
+erasing, _, >
+erasing, #
+erasing, _, >
+erasing, _
+halt-accept, _, <
+
+//DEF: Reset the tape by removing the Xs from the left part of the string and reset the right part of the string
+
+// Go to the extreme right
+reset_tape, #
+reset_tape, #, >
+reset_tape, 1
+reset_tape, 1, >
+reset_tape, #
+reset_tape, #, >
+reset_tape, X
+reset_tape, X, >
+reset_tape, _
+reset_tape_divisor, _, <
+
+reset_tape_divisor, X
+reset_tape_divisor, 1, <
+reset_tape_divisor, 1
+reset_tape_divisor, 1, <
+reset_tape_divisor, #
+reset_tape_dividend, #, <
+
+reset_tape_dividend, X
+reset_tape_dividend, _, <
+reset_tape_dividend, 1
+reset_tape_dividend, 1, <
+
+// Now, we must position the machine on the first available digit
+reset_tape_dividend, _
+autoleft, _, >
+
+// -- now that we remove the Xs from the left part, we must recenter to the left
+reset_tape_dividend, _
+autoleft, _, >
+
+// -- Continue until we find a digit
+autoleft, _
+autoleft, _, >
+autoleft, 1
+go_right, X, >
+
+////-----------------HALTING STATES
+right, _ 
+halt-state, _, >
+right, X 
+halt-state, X, >
+
+go_right_hash, #
+halt-state, #, >
+
+pre_go_left, _ 
+halt-state, _, >
+pre_go_left, X 
+halt-state, X, >
+
+pre_cleaning_tape, 1 
+halt-state, 1, >
+pre_cleaning_tape, X 
+halt-state, X, >
+
+clean_tape_right, # 
+halt-state, #, >
+
+reset_erasing_right, 1 
+halt-state, 1, >
+reset_erasing_right, # 
+halt-state, #, >
+
+clean_tape, 1 
+halt-state, 1, >
+
+erasing, 1 
+halt-state, 1, >
+
+reset_tape_divisor, _ 
+halt-state, _, >
+
+reset_tape_dividend, # 
+halt-state, #, >
+
+check_end_lr_2_clean, _
+halt-state, _, >
+check_end_lr_3_clean, _
+halt-state, _, >
+
+check_end_lr_2_reset, _
+halt-state, _, >
+check_end_lr_3_reset, _
+halt-state, _, >
+
+autoleft, # 
+halt-state, #, >
+autoleft, X 
+halt-state, X, >

@@ -1,0 +1,428 @@
+//-------CONFIGURATION
+name: Array match
+init: q0
+accept: halt-accept
+
+//-------MACHINE DESCRIPTION
+// This single-tape turing machine is able to find a certain element in an array of elements.
+// Format: <element to find>|<element 1>#<element 2>#...#<element n>
+// Example: 01|01#10#11#00 --> the machine will accept as the first element of the array is 01
+
+//-------DELTA FUNCTION:
+
+// We position the machine on the last symbol of the input
+q0, 1
+q0, 1, >
+q0, 0
+q0, 0, >
+q0, |
+qinput, |, <
+
+// Now, we select this symbol and we move to the actual array area of the input string (after |)
+qinput, 0
+qright_0, A, >
+qinput, 1
+qright_1, B, >
+
+qright_0, 0
+qright_0, 0, >
+qright_0, 1
+qright_0, 1, >
+qright_0, A
+qright_0, A, >
+qright_0, B
+qright_0, B, >
+
+qright_1, 0
+qright_1, 0, >
+qright_1, 1
+qright_1, 1, >
+qright_1, A
+qright_1, A, >
+qright_1, B
+qright_1, B, >
+
+// Check if we have reached the start of the array
+qright_0, |
+qsearch_0, |, >
+qright_1, |
+qsearch_1, |, >
+
+// Now, we explore the array to find an element that has the same last symbol as the one we selected from the input
+qsearch_0, 0
+qsearch_0, 0, >
+qsearch_0, 1
+qsearch_0, 1, >
+qsearch_0, A
+qsearch_0, A, >
+qsearch_0, B
+qsearch_0, B, >
+
+qsearch_1, 0
+qsearch_1, 0, >
+qsearch_1, 1
+qsearch_1, 1, >
+qsearch_1, A
+qsearch_1, A, >
+qsearch_1, B
+qsearch_1, B, >
+
+//// If we encounter an Y, we must skip the entire element
+qsearch_0, Y
+qnext_0, Y, >
+qsearch_1, Y
+qnext_1, Y, >
+
+// When we reach the array element divider symbol (#) or the empty string, we must move to the last available symbol of that element
+qsearch_0, #
+qcheck_0, #, <
+qsearch_0, _
+qcheck_0, _, <
+
+qsearch_1, #
+qcheck_1, #, <
+qsearch_1, _
+qcheck_1, _, <
+
+// note: we must skip already matched elements!
+qcheck_0, A
+qcheck_0, A, <
+qcheck_0, B
+qcheck_0, B, <
+
+qcheck_1, A
+qcheck_1, A, <
+qcheck_1, B
+qcheck_1, B, <
+
+// if we find an Y, it means that this element has been already marked as not matching
+// so we must move to the next element and ignore the current one!
+qcheck_0, Y
+qnext_0, Y, > 
+
+qcheck_1, Y
+qnext_1, Y, >
+
+// Skip already matched elements
+qnext_0, A
+qnext_0, A, >
+qnext_0, B
+qnext_0, B, >
+qnext_1, A
+qnext_1, A, >
+qnext_1, B
+qnext_1, B, >
+
+qnext_0, #
+qsearch_0, #, >
+
+qnext_1, #
+qsearch_1, #, >
+
+// On the other hand, if we find a 0 or a 1, we must check if it matches the last symbol of the input
+qcheck_0, 0
+qfound, A, <
+
+qcheck_1, 1
+qfound, B, <
+
+// We check if this element has been completely matched!
+qfound, #
+qmark_found, #, >
+qfound, |
+qmark_found, |, >
+
+//// We must mark this element as explored by Y rather than the first character!
+qmark_found, A
+qcheck_back, Y, <
+qmark_found, B
+qcheck_back, Y, <
+qmark_found, |
+qcheck_back, |, <
+qmark_found, Y
+qcheck_back, Y, <
+
+qcheck_back, 0
+qcheck_back, 0, <
+qcheck_back, 1
+qcheck_back, 1, <
+qcheck_back, A
+qcheck_back, A, <
+qcheck_back, B
+qcheck_back, B, <
+qcheck_back, Y
+qcheck_back, Y, <
+qcheck_back, #
+qcheck_back, #, <
+qcheck_back, |
+qfinished, |, <
+
+//// We must check if all input has been matched
+qfinished, A
+qfinished, A, <
+qfinished, B
+qfinished, B, <
+
+//// We have matched all input, we accept
+qfinished, _
+halt-accept, _, >
+
+/// We must first reset the input string!
+qfinished, 0
+q0, 0, >
+qfinished, 1
+q0, 1, >
+
+//// Otherwise, we continue mark this element as explored and we continue matching
+qfound, 0
+qback, 0, <
+qfound, 1
+qback, 1, <
+
+// If we do not find a match, we must mark this element as "not matched" and restart the entire search process
+qcheck_0, 1
+qback_reset, Y, <
+
+qcheck_1, 0
+qback_reset, Y, <
+
+// We go back to the query string to reset the entire input string
+qback_reset, 0
+qback_reset, 0, <
+qback_reset, 1
+qback_reset, 1, <
+qback_reset, A
+qback_reset, A, <
+qback_reset, B
+qback_reset, B, <
+qback_reset, Y
+qback_reset, Y, <
+qback_reset, #
+qback_reset, #, <
+qback_reset, |
+qreset_input, |, <
+
+///// We must reset the entire input string to the original state
+qreset_input, A
+qreset_input, 0, <
+qreset_input, B
+qreset_input, 1, <
+
+//// As soon as we find a normal symbol, we can restart the search process from the beginning!
+qreset_input, 0
+q0, 0, >
+qreset_input, 1
+q0, 1, >
+qreset_input, _
+q0, _, >
+
+// After having matched correctly the symbol, we must go back to the query string to check next symbol to match
+qback, 0
+qback, 0, <
+qback, 1
+qback, 1, <
+qback, A
+qback, A, <
+qback, B
+qback, B, <
+qback, Y
+qback, Y, <
+qback, #
+qback, #, <
+
+// When we re-enter the query string, we must move to the next available character
+qback, |
+qcontinue, |, <
+
+qcontinue, A
+qcontinue, A, <
+qcontinue, B
+qcontinue, B, <
+
+// If we have reached the end of the query string, we must
+// 1) mark the previous element as "not matched". Input is finished but we have not matched entire element! 
+// 2) reset the entire input string and restart the search process
+qcontinue, _
+qmark_too_long, _, >
+qmark_too_long, A
+qmark_too_long, A, >
+qmark_too_long, B
+qmark_too_long, B, >
+qmark_too_long, |
+qmark_too_long, |, >
+qmark_too_long, Y
+qmark_too_long_skip,  Y, >
+
+qmark_too_long_skip, 0
+qmark_too_long_skip, 0, >
+qmark_too_long_skip, 1
+qmark_too_long_skip, 1, >
+qmark_too_long_skip, A
+qmark_too_long_skip, A, >
+qmark_too_long_skip, B
+qmark_too_long_skip, B, >
+qmark_too_long_skip, Y
+qmark_too_long_skip, Y, >
+
+/// We now look again in the new element
+qmark_too_long_skip, #
+qmark_too_long, #, >
+
+// We have found the string that we were processing before when we encounter an unprocessed element and then a processed one.
+// If we find an Y, we must skip the entire element
+qmark_too_long, 0
+qmark_too_long_check, 0, >
+qmark_too_long, 1
+qmark_too_long_check, 1, >
+
+// This element has already been processed, we must skip it
+qmark_too_long_check, Y
+qmark_too_long_skip, Y, >
+
+qmark_too_long_check, A
+qback_reset, Y, <
+qmark_too_long_check, B
+qback_reset, Y, <
+
+// As soon as we reach a valid character, we must match the new symbol! 
+qcontinue, 0
+qright_0, A, >
+
+qcontinue, 1
+qright_1, B, >
+
+
+///
+/// Halt transitions: as soon as we encounter an illegal character, we must halt!
+///
+q0, _ 
+halt-state, _, -
+q0, Y 
+halt-state, Y, -
+q0, # 
+halt-state, #, -
+q0, A 
+halt-state, A, -
+q0, B 
+halt-state, B, -
+
+qinput, _ 
+halt-state, _, -
+qinput, Y 
+halt-state, Y, -
+qinput, # 
+halt-state, #, -
+qinput, A 
+halt-state, A, -
+qinput, | 
+halt-state, |, -
+qinput, B 
+halt-state, B, -
+
+qright_0, _ 
+halt-state, _, -
+qright_0, # 
+halt-state, #, -
+qright_0, Y 
+halt-state, Y, -
+
+qright_1, _ 
+halt-state, _, -
+qright_1, # 
+halt-state, #, -
+qright_1, Y 
+halt-state, Y, -
+
+qsearch_0, | 
+halt-state, |, -
+
+qsearch_1, | 
+halt-state, |, -
+
+qnext_0, _ 
+halt-state, _, -
+qnext_0, Y 
+halt-state, Y, -
+qnext_0, | 
+halt-state, |, -
+qnext_0, 1 
+halt-state, 1, -
+qnext_0, 0 
+halt-state, 0, -
+
+qnext_1, _ 
+halt-state, _, -
+qnext_1, Y 
+halt-state, Y, -
+qnext_1, | 
+halt-state, |, -
+qnext_1, 1 
+halt-state, 1, -
+qnext_1, 0 
+halt-state, 0, -
+
+qcheck_0, | 
+halt-state, |, -
+
+qcheck_1, | 
+halt-state, |, -
+
+qfound, _ 
+halt-state, _, -
+
+qmark_found, 1 
+halt-state, 1, -
+qmark_found, _ 
+halt-state, _, -
+qmark_found, 0 
+halt-state, 0, -
+qmark_found, # 
+halt-state, #, -
+
+qcheck_back, _ 
+halt-state, _, -
+
+qfinished, | 
+halt-state, |, -
+qfinished, # 
+halt-state, #, -
+qfinished, Y 
+halt-state, Y, -
+
+qback, _ 
+halt-state, _, -
+
+qcontinue, | 
+halt-state, |, -
+qcontinue, # 
+halt-state, #, -
+qcontinue, Y 
+halt-state, Y, -
+
+qmark_too_long, _ 
+halt-state, _, -
+
+qmark_too_long_skip, _ 
+halt-state, _, -
+qmark_too_long_skip, | 
+halt-state, |, -
+qmark_too_long_check, _ 
+halt-state, _, -
+qmark_too_long_check, # 
+halt-state, #, -
+qmark_too_long_check, | 
+halt-state, |, -
+qmark_too_long_check, 1 
+halt-state, 1, -
+qmark_too_long_check, 0 
+halt-state, 0, -
+
+qback_reset, _ 
+halt-state, _, -
+
+qreset_input, | 
+halt-state, |, -
+qreset_input, # 
+halt-state, #, -
+qreset_input, Y 
+halt-state, Y, -
